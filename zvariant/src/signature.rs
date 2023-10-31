@@ -1,5 +1,7 @@
 use core::{
+    cmp::Ordering,
     fmt::{self, Debug, Display, Formatter},
+    hash::{Hash, Hasher},
     str,
 };
 use serde::{
@@ -20,27 +22,11 @@ use crate::{signature_parser::SignatureParser, Basic, EncodingFormat, Error, Res
 // breakage.
 //
 // [`bytes::Bytes`]: https://docs.rs/bytes/0.5.6/bytes/struct.Bytes.html
-#[derive(Debug, Hash, Clone, PartialOrd, Ord, Eq)]
+#[derive(Debug, Clone)]
 enum Bytes<'b> {
     Borrowed(&'b [u8]),
     Static(&'static [u8]),
     Owned(Arc<[u8]>),
-}
-
-impl PartialEq for Bytes<'_> {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Bytes::Borrowed(b), Bytes::Static(s)) => **b == **s,
-            (Bytes::Static(s), Bytes::Borrowed(b)) => **s == **b,
-            (Bytes::Owned(o), Bytes::Borrowed(b)) => *o.as_ref() == **b,
-            (Bytes::Borrowed(b), Bytes::Owned(o)) => **b == *o.as_ref(),
-            (Bytes::Static(s), Bytes::Owned(o)) => **s == *o.as_ref(),
-            (Bytes::Borrowed(b1), Bytes::Borrowed(b2)) => **b1 == **b2,
-            (Bytes::Owned(b1), Bytes::Owned(b2)) => *b1.as_ref() == *b2.as_ref(),
-            (Bytes::Owned(b1), Bytes::Static(s2)) => *b1.as_ref() == **s2,
-            (Bytes::Static(s1), Bytes::Static(s2)) => **s1 == **s2
-        }
-    }
 }
 
 impl<'b> Bytes<'b> {
@@ -62,7 +48,7 @@ impl<'b> Bytes<'b> {
     }
 }
 
-impl<'b> std::ops::Deref for Bytes<'b> {
+impl std::ops::Deref for Bytes<'_> {
     type Target = [u8];
 
     fn deref(&self) -> &[u8] {
@@ -71,6 +57,32 @@ impl<'b> std::ops::Deref for Bytes<'b> {
             Bytes::Static(borrowed) => borrowed,
             Bytes::Owned(owned) => owned,
         }
+    }
+}
+
+impl Eq for Bytes<'_> {}
+
+impl PartialEq for Bytes<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        &**self == &**other
+    }
+}
+
+impl Ord for Bytes<'_> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.partial_cmp(other).unwrap_or(Ordering::Less)
+    }
+}
+
+impl PartialOrd for Bytes<'_> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        (&**self).partial_cmp(&**other)
+    }
+}
+
+impl Hash for Bytes<'_> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        (&**self).hash(state)
     }
 }
 
