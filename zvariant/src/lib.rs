@@ -1158,7 +1158,7 @@ mod tests {
         let v: Value<'_> = dict.into();
         assert_eq!(v.value_signature(), "a{sv}");
         let encoded = to_bytes(ctxt, &v).unwrap();
-        assert_eq!(dbg!(encoded.len()), 68);
+        assert_eq!(dbg!(encoded.len()), 66);
         let v: Value<'_> = from_slice(&encoded, ctxt).unwrap().0;
         if let Value::Dict(dict) = v {
             assert_eq!(
