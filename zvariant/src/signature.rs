@@ -20,11 +20,27 @@ use crate::{signature_parser::SignatureParser, Basic, EncodingFormat, Error, Res
 // breakage.
 //
 // [`bytes::Bytes`]: https://docs.rs/bytes/0.5.6/bytes/struct.Bytes.html
-#[derive(PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
+#[derive(Debug, Hash, Clone, PartialOrd, Ord, Eq)]
 enum Bytes<'b> {
     Borrowed(&'b [u8]),
     Static(&'static [u8]),
     Owned(Arc<[u8]>),
+}
+
+impl PartialEq for Bytes<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Bytes::Borrowed(b), Bytes::Static(s)) => **b == **s,
+            (Bytes::Static(s), Bytes::Borrowed(b)) => **s == **b,
+            (Bytes::Owned(o), Bytes::Borrowed(b)) => *o.as_ref() == **b,
+            (Bytes::Borrowed(b), Bytes::Owned(o)) => **b == *o.as_ref(),
+            (Bytes::Static(s), Bytes::Owned(o)) => **s == *o.as_ref(),
+            (Bytes::Borrowed(b1), Bytes::Borrowed(b2)) => **b1 == **b2,
+            (Bytes::Owned(b1), Bytes::Owned(b2)) => *b1.as_ref() == *b2.as_ref(),
+            (Bytes::Owned(b1), Bytes::Static(s2)) => *b1.as_ref() == **s2,
+            (Bytes::Static(s1), Bytes::Static(s2)) => **s1 == **s2
+        }
+    }
 }
 
 impl<'b> Bytes<'b> {
@@ -542,7 +558,31 @@ impl std::fmt::Display for OwnedSignature {
 
 #[cfg(test)]
 mod tests {
-    use super::Signature;
+    use super::{Signature, Bytes};
+    use std::sync::Arc;
+
+    #[test]
+    fn bytes_equality() {
+        let borrowed1 = Bytes::Borrowed(b"foo");
+        let borrowed2 = Bytes::Borrowed(b"foo");
+        let static1 = Bytes::Static(b"foo");
+        let static2 = Bytes::Static(b"foo");
+        let owned1 = Bytes::Owned(Arc::new(*b"foo"));
+        let owned2 = Bytes::Owned(Arc::new(*b"foo"));
+
+        assert_eq!(borrowed1, borrowed2);
+        assert_eq!(static1, static2);
+        assert_eq!(owned1, owned2);
+
+        assert_eq!(borrowed1, static1);
+        assert_eq!(static1, borrowed1);
+
+        assert_eq!(static1, owned1);
+        assert_eq!(owned1, static1);
+
+        assert_eq!(borrowed1, owned1);
+        assert_eq!(owned1, borrowed1);
+    }
 
     #[test]
     fn signature_slicing() {
