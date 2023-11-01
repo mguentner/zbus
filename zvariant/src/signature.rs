@@ -64,7 +64,7 @@ impl Eq for Bytes<'_> {}
 
 impl PartialEq for Bytes<'_> {
     fn eq(&self, other: &Self) -> bool {
-        &**self == &**other
+        **self == **other
     }
 }
 
@@ -76,7 +76,7 @@ impl Ord for Bytes<'_> {
 
 impl PartialOrd for Bytes<'_> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        (&**self).partial_cmp(&**other)
+        Some(self.cmp(other))
     }
 }
 
