@@ -1,4 +1,5 @@
 use core::{
+    cmp::Ordering,
     hash::{Hash, Hasher},
     mem::discriminant,
     str,
@@ -135,8 +136,16 @@ impl Hash for Value<'_> {
 impl Eq for Value<'_> {}
 
 impl Ord for Value<'_> {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.partial_cmp(other).unwrap_or(std::cmp::Ordering::Less)
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.partial_cmp(other)
+            .unwrap_or_else(|| match (self, other) {
+                (Self::F64(lhs), Self::F64(rhs)) => lhs.total_cmp(rhs),
+                // `partial_cmp` is returns `Some(_)` if either the discriminants are different
+                //   or if both the left hand side and right hand side is `Self::F64(_)`,
+                //   because `f64` is the only type in this enum, that does not implement `Ord`.
+                // This `match`-arm is therefore unreachable.
+                _ => unreachable!(),
+            })
     }
 }
 
