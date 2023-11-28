@@ -4,7 +4,7 @@ use core::{
     panic, str,
 };
 use serde::{
-    de::{Deserialize, Deserializer, Visitor},
+    de::{Deserialize, Deserializer, SeqAccess, Visitor},
     ser::{Serialize, Serializer},
 };
 use static_assertions::assert_impl_all;
@@ -273,6 +273,61 @@ impl<'a> Signature<'a> {
     }
 }
 
+macro_rules! deserialize_methods {
+    ($(fn $method:ident($($arg:ident: $type:ty),*);)*) => {
+        $(
+            #[inline]
+            fn $method<V>(self, $($arg: $type,)* visitor: V) -> Result<V::Value>
+            where
+                V: Visitor<'de>,
+            {
+                visitor.visit_str(self.as_str())
+            }
+        )*
+    }
+}
+
+impl<'de> Deserializer<'de> for Signature<'de> {
+    type Error = Error;
+
+    deserialize_methods! {
+        fn deserialize_any();
+        fn deserialize_bool();
+        fn deserialize_i8();
+        fn deserialize_i16();
+        fn deserialize_i32();
+        fn deserialize_i64();
+        fn deserialize_u8();
+        fn deserialize_u16();
+        fn deserialize_u32();
+        fn deserialize_u64();
+        fn deserialize_f32();
+        fn deserialize_f64();
+        fn deserialize_char();
+        fn deserialize_str();
+        fn deserialize_string();
+        fn deserialize_bytes();
+        fn deserialize_byte_buf();
+        fn deserialize_option();
+        fn deserialize_unit();
+        fn deserialize_unit_struct(_n: &'static str);
+        fn deserialize_newtype_struct(_n: &'static str);
+        fn deserialize_seq();
+        fn deserialize_map();
+        fn deserialize_tuple(_l: usize);
+        fn deserialize_tuple_struct(_n: &'static str, _l: usize);
+        fn deserialize_struct(_n: &'static str, _f: &'static [&'static str]);
+        fn deserialize_enum(_n: &'static str, _f: &'static [&'static str]);
+        fn deserialize_identifier();
+        fn deserialize_ignored_any();
+    }
+
+    #[inline]
+    fn is_human_readable(&self) -> bool {
+        false
+    }
+}
+
 impl<'a> Debug for Signature<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("Signature").field(&self.as_str()).finish()
@@ -394,7 +449,7 @@ impl<'de: 'a, 'a> Deserialize<'de> for Signature<'a> {
     {
         let visitor = SignatureVisitor;
 
-        deserializer.deserialize_str(visitor)
+        deserializer.deserialize_any(visitor)
     }
 }
 
@@ -413,6 +468,19 @@ impl<'de> Visitor<'de> for SignatureVisitor {
         E: serde::de::Error,
     {
         Signature::try_from(value).map_err(serde::de::Error::custom)
+    }
+
+    #[inline]
+    fn visit_seq<A>(self, mut seq: A) -> core::result::Result<Self::Value, A::Error>
+    where
+        A: SeqAccess<'de>,
+    {
+        let signature = seq
+            .next_element()?
+            .ok_or_else(|| serde::de::Error::invalid_length(0, &self));
+        let _value = seq.next_element::<()>();
+
+        signature
     }
 }
 
