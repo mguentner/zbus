@@ -401,7 +401,7 @@ macro_rules! gen_monitoring_proxy {
             /// after this call.
             ///
             /// See [the spec] for details on all the implications and caveats.
-            /// 
+            ///
             /// # Arguments
             ///
             /// * `match_rules` - A list of match rules describing the messages you want to receive.
@@ -443,7 +443,7 @@ macro_rules! gen_stats_proxy {
             fn get_connection_stats(&self, name: BusName<'_>) -> Result<Vec<HashMap<String, OwnedValue>>>;
 
             /// GetAllMatchRules (undocumented)
-            fn get_all_match_rules(&self) -> 
+            fn get_all_match_rules(&self) ->
                 Result<
                     Vec<
                         HashMap<
